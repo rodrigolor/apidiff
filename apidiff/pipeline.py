@@ -1,47 +1,69 @@
-"""Pipeline for applying filter and sort operations to a DiffResult."""
+"""Fluent pipeline for filtering, sorting, and exporting diff results."""
 
+from __future__ import annotations
+
+from pathlib import Path
 from typing import Optional
+
 from apidiff.differ import DiffResult
-from apidiff.filter import apply_filters
+from apidiff.filter import filter_breaking, filter_non_breaking, filter_by_path, filter_by_method
 from apidiff.sorter import sort_changes
+from apidiff.exporter import export_result
 
 
 class DiffPipeline:
-    """Fluent interface for filtering and sorting a DiffResult."""
+    """Chain filter/sort/export operations on a :class:`DiffResult`."""
 
     def __init__(self, result: DiffResult) -> None:
         self._result = result
 
+    # ------------------------------------------------------------------
+    # Filtering
+    # ------------------------------------------------------------------
+
     def breaking_only(self) -> "DiffPipeline":
         """Keep only breaking changes."""
-        self._result = apply_filters(self._result, breaking_only=True)
-        return self
+        return DiffPipeline(filter_breaking(self._result))
 
     def non_breaking_only(self) -> "DiffPipeline":
         """Keep only non-breaking changes."""
-        self._result = apply_filters(self._result, non_breaking_only=True)
-        return self
+        return DiffPipeline(filter_non_breaking(self._result))
 
-    def path(self, prefix: str) -> "DiffPipeline":
-        """Keep only changes whose path starts with prefix."""
-        self._result = apply_filters(self._result, path_prefix=prefix)
-        return self
+    def path(self, pattern: str) -> "DiffPipeline":
+        """Keep changes whose path contains *pattern*."""
+        return DiffPipeline(filter_by_path(self._result, pattern))
 
     def method(self, http_method: str) -> "DiffPipeline":
-        """Keep only changes for the given HTTP method."""
-        self._result = apply_filters(self._result, method=http_method)
-        return self
+        """Keep changes matching *http_method* (case-insensitive)."""
+        return DiffPipeline(filter_by_method(self._result, http_method))
 
-    def sort(self, by: str = "severity", reverse: bool = False) -> "DiffPipeline":
-        """Sort changes by the given key ('severity' or 'path')."""
-        self._result = sort_changes(self._result, by=by, reverse=reverse)
-        return self
+    # ------------------------------------------------------------------
+    # Sorting
+    # ------------------------------------------------------------------
+
+    def sort(self, by: str = "severity", ascending: bool = True) -> "DiffPipeline":
+        """Sort changes. *by* is ``'severity'`` or ``'path'``."""
+        return DiffPipeline(sort_changes(self._result, by=by, ascending=ascending))
+
+    # ------------------------------------------------------------------
+    # Export
+    # ------------------------------------------------------------------
+
+    def export(
+        self,
+        dest: str | Path,
+        fmt: str = "json",
+    ) -> Path:
+        """Write the current result to *dest* and return the resolved path."""
+        return export_result(self._result, dest, fmt=fmt)
+
+    # ------------------------------------------------------------------
+    # Terminal
+    # ------------------------------------------------------------------
 
     def result(self) -> DiffResult:
-        """Return the final DiffResult after all pipeline steps."""
+        """Return the current :class:`DiffResult`."""
         return self._result
 
-
-def build_pipeline(result: DiffResult) -> DiffPipeline:
-    """Create a new DiffPipeline for the given result."""
-    return DiffPipeline(result)
+    def __len__(self) -> int:  # pragma: no cover
+        return len(self._result.changes)
