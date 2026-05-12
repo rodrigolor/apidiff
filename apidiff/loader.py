@@ -44,7 +44,16 @@ def load_spec(path: str) -> dict[str, Any]:
 
     try:
         if suffix == ".json":
-            return json.loads(content)
-        return yaml.safe_load(content) or {}
+            spec = json.loads(content)
+        else:
+            spec = yaml.safe_load(content) or {}
     except (json.JSONDecodeError, yaml.YAMLError) as exc:
         raise SpecLoadError(f"Failed to parse {path}: {exc}") from exc
+
+    if not isinstance(spec, dict):
+        raise SpecLoadError(
+            f"Invalid spec in {path}: expected a mapping at the top level, "
+            f"got {type(spec).__name__}."
+        )
+
+    return spec
