@@ -1,62 +1,58 @@
-"""Fluent pipeline for filtering, sorting, validating, and formatting diff results."""
+"""Pipeline for chaining diff filters, sorting, and ignore rules."""
 
 from typing import List, Optional
 
-from apidiff.differ import DiffResult
+from apidiff.differ import ChangeType, DiffResult
 from apidiff.filter import (
     filter_breaking,
-    filter_non_breaking,
-    filter_by_path,
     filter_by_method,
+    filter_by_path,
+    filter_non_breaking,
 )
+from apidiff.ignorer import IgnoreConfig, IgnoreRule, apply_ignore
 from apidiff.sorter import sort_changes
-from apidiff.formatter import format_text, format_json
-from apidiff.validator import ValidationResult, run_validations
 
 
 class DiffPipeline:
-    """Chainable pipeline for processing a DiffResult."""
+    """Fluent builder for applying transformations to a DiffResult."""
 
     def __init__(self, result: DiffResult) -> None:
         self._result = result
 
     def breaking_only(self) -> "DiffPipeline":
-        """Keep only breaking changes."""
-        return DiffPipeline(filter_breaking(self._result))
+        self._result = filter_breaking(self._result)
+        return self
 
     def non_breaking_only(self) -> "DiffPipeline":
-        """Keep only non-breaking changes."""
-        return DiffPipeline(filter_non_breaking(self._result))
+        self._result = filter_non_breaking(self._result)
+        return self
 
-    def path(self, pattern: str) -> "DiffPipeline":
-        """Keep changes whose path contains *pattern*."""
-        return DiffPipeline(filter_by_path(self._result, pattern))
+    def path(self, prefix: str) -> "DiffPipeline":
+        self._result = filter_by_path(self._result, prefix)
+        return self
 
     def method(self, http_method: str) -> "DiffPipeline":
-        """Keep changes for a specific HTTP method."""
-        return DiffPipeline(filter_by_method(self._result, http_method))
+        self._result = filter_by_method(self._result, http_method)
+        return self
 
     def sort(self, by: str = "severity", ascending: bool = True) -> "DiffPipeline":
-        """Sort changes by *by* ('severity' or 'path')."""
-        return DiffPipeline(sort_changes(self._result, by=by, ascending=ascending))
+        self._result = sort_changes(self._result, by=by, ascending=ascending)
+        return self
 
-    def validate(self, rules: Optional[List[str]] = None) -> ValidationResult:
-        """Run validation rules and return a ValidationResult."""
-        if rules is None:
-            rules = ["no-breaking-changes"]
-        return run_validations(self._result, rules)
+    def ignore(self, config: IgnoreConfig) -> "DiffPipeline":
+        """Apply an IgnoreConfig to suppress matching changes."""
+        self._result = apply_ignore(self._result, config)
+        return self
 
-    def to_text(self, color: bool = True) -> str:
-        """Render the current result as plain text."""
-        return format_text(self._result, color=color)
+    def ignore_paths(self, prefixes: List[str]) -> "DiffPipeline":
+        """Ignore all changes whose path starts with any of the given prefixes."""
+        config = IgnoreConfig(rules=[IgnoreRule(path_prefix=p) for p in prefixes])
+        return self.ignore(config)
 
-    def to_json(self) -> str:
-        """Render the current result as JSON."""
-        return format_json(self._result)
+    def ignore_change_types(self, types: List[ChangeType]) -> "DiffPipeline":
+        """Ignore changes of the given ChangeType values."""
+        config = IgnoreConfig(rules=[IgnoreRule(change_type=t) for t in types])
+        return self.ignore(config)
 
-    def result(self) -> DiffResult:
-        """Return the underlying DiffResult."""
+    def build(self) -> DiffResult:
         return self._result
-
-    def __len__(self) -> int:
-        return len(self._result.changes)
