@@ -1,49 +1,65 @@
-"""CLI entry point for apidiff."""
-
+"""Command-line interface for apidiff."""
 import sys
+import argparse
+import json
 
-import click
+from apidiff.loader import load_spec, SpecLoadError
+from apidiff.differ import diff_specs
+from apidiff.formatter import format_text, format_json
+from apidiff.reporter import summarize, format_summary_text
 
-from apidiff import __version__
-from apidiff.loader import SpecLoadError, load_spec
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="apidiff",
+        description="Diff two OpenAPI spec files and highlight breaking vs non-breaking changes.",
+    )
+    parser.add_argument("base", help="Path to the base (old) OpenAPI spec file.")
+    parser.add_argument("head", help="Path to the head (new) OpenAPI spec file.")
+    parser.add_argument(
+        "--format",
+        choices=["text", "json"],
+        default="text",
+        help="Output format (default: text).",
+    )
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Print a summary of changes after the diff output.",
+    )
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output.",
+    )
+    return parser
 
 
-@click.command()
-@click.argument("base", metavar="BASE_SPEC")
-@click.argument("revision", metavar="REVISION_SPEC")
-@click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(["text", "json"], case_sensitive=False),
-    default="text",
-    show_default=True,
-    help="Output format for the diff report.",
-)
-@click.version_option(version=__version__, prog_name="apidiff")
-def main(base: str, revision: str, output_format: str) -> None:
-    """Diff two OpenAPI spec files and highlight breaking vs non-breaking changes.
+def main(argv=None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
 
-    BASE_SPEC    Path to the base (original) OpenAPI spec file.
-    REVISION_SPEC  Path to the revised OpenAPI spec file.
-    """
     try:
-        base_spec = load_spec(base)
-        revision_spec = load_spec(revision)
+        base_spec = load_spec(args.base)
+        head_spec = load_spec(args.head)
     except SpecLoadError as exc:
-        click.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        print(f"Error loading spec: {exc}", file=sys.stderr)
+        return 1
 
-    click.echo(
-        f"Loaded base spec: {base_spec.get('info', {}).get('title', 'unknown')} "
-        f"v{base_spec.get('info', {}).get('version', '?')}"
-    )
-    click.echo(
-        f"Loaded revision spec: {revision_spec.get('info', {}).get('title', 'unknown')} "
-        f"v{revision_spec.get('info', {}).get('version', '?')}"
-    )
-    click.echo(f"Output format: {output_format}")
-    click.echo("(diff engine not yet implemented)")
+    result = diff_specs(base_spec, head_spec)
+
+    if args.format == "json":
+        print(format_json(result))
+    else:
+        print(format_text(result, color=not args.no_color))
+
+    if args.summary:
+        summary = summarize(result)
+        print()
+        print(format_summary_text(summary))
+
+    return 1 if result.has_breaking else 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
