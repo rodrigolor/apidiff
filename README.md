@@ -42,6 +42,7 @@ apidiff old-spec.yaml new-spec.yaml
 | `--format json` | Output results as JSON |
 | `--breaking-only` | Show only breaking changes |
 | `--exit-code` | Exit with code 1 if breaking changes are found |
+| `--ignore-description` | Ignore changes to description fields |
 
 ```bash
 apidiff old-spec.yaml new-spec.yaml --breaking-only --exit-code
@@ -53,6 +54,25 @@ apidiff old-spec.yaml new-spec.yaml --breaking-only --exit-code
 
 - YAML (`.yaml`, `.yml`)
 - JSON (`.json`)
+
+---
+
+## What Counts as a Breaking Change?
+
+The following changes are considered **breaking**:
+
+- Removing an existing endpoint
+- Removing a required request parameter or field
+- Changing the type of an existing field
+- Making an optional parameter required
+- Changing an existing success response status code
+
+The following are considered **non-breaking**:
+
+- Adding a new endpoint
+- Adding an optional parameter
+- Adding a new field to a response body
+- Updating descriptions or documentation strings
 
 ---
 
