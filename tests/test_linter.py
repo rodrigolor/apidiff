@@ -111,7 +111,8 @@ def test_lint_no_success_response_warning():
                 "get": {
                     "operationId": "getFoo",
                     "summary": "Get foo",
-                    "responses": {"400": {"description": "Bad request"}},
+                    "description": "Gets foo.",
+                    "responses": {"400": {"description": "Bad Request"}},
                 }
             }
         }
@@ -121,7 +122,23 @@ def test_lint_no_success_response_warning():
     assert "NO_SUCCESS_RESPONSE" in codes
 
 
-def test_lint_empty_paths():
-    result = lint_spec({"paths": {}})
-    assert len(result) == 0
+def test_lint_spec_empty_paths():
+    """A spec with no paths should produce no issues."""
+    spec = {
+        "openapi": "3.0.0",
+        "info": {"title": "Empty", "version": "1.0.0"},
+        "paths": {},
+    }
+    result = lint_spec(spec)
     assert result.passed is True
+    assert len(result) == 0
+
+
+def test_lint_spec_missing_paths_key():
+    """A spec without a 'paths' key should not raise and should return a result."""
+    spec = {
+        "openapi": "3.0.0",
+        "info": {"title": "NoPaths", "version": "1.0.0"},
+    }
+    result = lint_spec(spec)
+    assert isinstance(result, LintResult)
