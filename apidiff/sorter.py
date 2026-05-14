@@ -10,11 +10,16 @@ def sort_by_path(result: DiffResult, reverse: bool = False) -> DiffResult:
     return DiffResult(changes=sorted_changes)
 
 
-def sort_by_severity(result: DiffResult) -> DiffResult:
-    """Return a new DiffResult with breaking changes listed before non-breaking."""
+def sort_by_severity(result: DiffResult, reverse: bool = False) -> DiffResult:
+    """Return a new DiffResult with breaking changes listed before non-breaking.
+
+    Args:
+        result: The DiffResult to sort.
+        reverse: If True, non-breaking changes are listed before breaking.
+    """
     order = {ChangeType.BREAKING: 0, ChangeType.NON_BREAKING: 1}
     sorted_changes = sorted(
-        result.changes, key=lambda c: order.get(c.change_type, 99)
+        result.changes, key=lambda c: order.get(c.change_type, 99), reverse=reverse
     )
     return DiffResult(changes=sorted_changes)
 
@@ -38,10 +43,7 @@ def sort_changes(
         ValueError: If an unknown sort key is provided.
     """
     if by == "severity":
-        sorted_result = sort_by_severity(result)
-        if reverse:
-            return DiffResult(changes=list(reversed(sorted_result.changes)))
-        return sorted_result
+        return sort_by_severity(result, reverse=reverse)
     elif by == "path":
         return sort_by_path(result, reverse=reverse)
     else:
