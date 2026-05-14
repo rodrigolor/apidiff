@@ -87,3 +87,21 @@ def test_unknown_change_type_raises(tmp_path):
     f.write_text(json.dumps(data))
     with pytest.raises(IgnoreFileError, match="Unknown change_type"):
         load_ignore_config(str(f))
+
+
+def test_empty_rules_list(tmp_path):
+    """An ignore file with an empty rules list should load without error."""
+    f = tmp_path / "empty.json"
+    f.write_text(json.dumps({"rules": []}))
+    config = load_ignore_config(str(f))
+    assert config.rules == []
+
+
+def test_rule_with_multiple_fields(tmp_path):
+    """A rule may combine multiple filter fields (e.g. method + path_prefix)."""
+    data = {"rules": [{"method": "POST", "path_prefix": "/v1"}]}
+    f = tmp_path / "multi.json"
+    f.write_text(json.dumps(data))
+    config = load_ignore_config(str(f))
+    assert config.rules[0].method == "POST"
+    assert config.rules[0].path_prefix == "/v1"
