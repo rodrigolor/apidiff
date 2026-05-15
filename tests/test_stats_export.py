@@ -20,6 +20,12 @@ def sample_stats():
     return compute_stats(result)
 
 
+@pytest.fixture()
+def empty_stats():
+    """Stats computed from a DiffResult with no changes."""
+    return compute_stats(DiffResult(changes=[]))
+
+
 def test_stats_to_dict_keys(sample_stats):
     d = stats_to_dict(sample_stats)
     for key in ("total", "breaking", "non_breaking", "breaking_ratio", "by_type", "by_method", "by_path", "affected_paths"):
@@ -31,6 +37,15 @@ def test_stats_to_dict_values(sample_stats):
     assert d["total"] == 2
     assert d["breaking"] == 1
     assert d["non_breaking"] == 1
+
+
+def test_stats_to_dict_empty(empty_stats):
+    """stats_to_dict should handle zero changes without errors."""
+    d = stats_to_dict(empty_stats)
+    assert d["total"] == 0
+    assert d["breaking"] == 0
+    assert d["non_breaking"] == 0
+    assert d["breaking_ratio"] == 0.0
 
 
 def test_export_stats_json(tmp_path, sample_stats):
