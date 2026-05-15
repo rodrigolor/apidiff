@@ -84,3 +84,10 @@ def test_pipeline_stores_paths(base_file, head_untagged_file):
     result = run_tag_coverage_pipeline(base_file, head_untagged_file)
     assert result.base_path == base_file
     assert result.head_path == head_untagged_file
+
+
+def test_pipeline_raises_for_missing_file(tmp_path):
+    """run_tag_coverage_pipeline should raise an error for a non-existent file."""
+    missing = str(tmp_path / "does_not_exist.json")
+    with pytest.raises((FileNotFoundError, OSError)):
+        run_tag_coverage_pipeline(missing, missing)
